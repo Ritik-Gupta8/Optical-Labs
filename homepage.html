@@ -176,11 +176,11 @@
             const toast = reactive({ visible: false, message: '', timer: null });
             const controls = reactive({ angle_of_incidence_deg: 0 });
             
-            // ADDED: Sweep Controls and Chart Instance Ref
+            
             const sweepControls = reactive({ start_nm: 400, stop_nm: 700, points: 50 });
             let chartInstance = null; // Ref to hold the Chart.js instance
             
-            // Undo/Redo State
+            
             const history = ref([]);
             const redoStack = ref([]);
             let isTimeTraveling = false; 
@@ -292,7 +292,7 @@
                 } catch (error) {}
             };
             
-            // FIXED: runFrequencySweep implementation
+            
             const runFrequencySweep = async () => {
                 const detectorComp = components.value.find(c => c.type === 'detector');
                 if (!detectorComp) {
@@ -331,7 +331,7 @@
                 }
             };
 
-            // FIXED: renderChart implementation
+            
             const renderChart = (sweepData) => {
                 const ctx = document.getElementById('sweepChart');
                 if (!ctx) return;
@@ -405,7 +405,7 @@
                 components, selectedComponentId, isSimulating, simulatedRayPaths, controls, toast, COMPONENT_TYPES, history, redoStack,
                 selectedComponent, getComponentType, getUnit, placeComponent, deleteComponent, startDrag, startRotate, downloadSetup,
                 handleDragMove, handleInteractionEnd, runFrequencySweep, undo, redo, loadTemplate,
-                sweepControls // ADDED to be accessible in the template
+                sweepControls 
             };
         }
     });
