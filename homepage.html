@@ -159,7 +159,7 @@
     const { createApp, ref, reactive, computed, onMounted, watch, nextTick } = Vue;
     const app = createApp({
         setup() {
-            const API_URL = "http://127.0.0.1:8000";
+            const API_URL = "https://optical-labs-backend.onrender.com";
             const COMPONENT_TYPES = [
                 { id: 'laser', name: 'Laser Source', icon: 'sun', defaultProps: { angle: 0 } },
                 { id: 'mirror', name: 'Mirror', icon: 'rectangle-horizontal', defaultProps: { angle: 45 } },
