@@ -127,7 +127,7 @@ def generate_sweep_results(sweep_config: FrequencySweep, detector_hit: bool):
     results, points = [], sweep_config.points
     for i in range(points):
 
-        # --- THE FIX WAS HERE ---
+        # Calculate the wavelength based on the sweep configuration
         wavelength = sweep_config.start_nm + (sweep_config.stop_nm - sweep_config.start_nm) * i / (max(1, points - 1))
 
         if detector_hit:
@@ -149,12 +149,7 @@ async def simulate_path_only(req: PathRequest):
 @app.post("/simulate_sweep")
 async def simulate_full_sweep(req: SweepRequest):
     await asyncio.sleep(0.5) 
-
-    # --- LOGIC CHECK ADDED HERE ---
-    # Run the path simulation FIRST
     _, detector_was_hit = trace_all_paths(req.components, req.controls)
-
-    # Pass the detector status to the generator
     results = generate_sweep_results(req.frequency_sweep, detector_was_hit)
 
     return {"frequency_sweep_results": results}
