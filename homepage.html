@@ -1,254 +1,417 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Optical Setup Designer</title>
-  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/lucide@latest"></script>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-    .font-inter { font-family: 'Inter', sans-serif; }
-    [v-cloak] { display: none; }
-    .grid-cell {
-      transform: translate(-50%, -50%);
-    }
-    .component-icon {
-      transform-origin: center;
-    }
-    .animate-ray-path {
-      stroke-dasharray: 1000;
-      stroke-dashoffset: 1000;
-      animation: dash 5s linear forwards;
-    }
-    @keyframes dash {
-      to {
-        stroke-dashoffset: 0;
-      }
-    }
-  </style>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Definitive Optical Bench</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        [v-cloak] { display: none; }
+        .toast { transition: opacity 0.3s, transform 0.3s; }
+    </style>
 </head>
-<body class="bg-gray-100 font-inter p-4 md:p-8">
+<body>
 
-<div id="app" v-cloak>
-  <header class="mb-6">
-    <h1 class="text-3xl font-extrabold text-gray-900 flex items-center">
-      <svg class="h-8 w-8 text-indigo-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-          d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
-      </svg>
-      Optical Bench Designer
-    </h1>
-    <p class="text-gray-500">Design your experiment and simulate light paths using Optical Bench Designer</p>
-    <div v-if="message"
-      :class="['mt-2 p-3 border rounded-lg text-sm transition-opacity duration-300',
-              messageType === 'success'
-                ? 'bg-green-100 border-green-400 text-green-700'
-                : 'bg-red-100 border-red-400 text-red-700']">
-      {{ message }}
-    </div>
-  </header>
-
-  <div class="flex flex-col lg:flex-row gap-6">
-    <!-- Left Panel -->
-    <div class="w-full lg:w-1/4 space-y-6">
-      <!-- Component Library -->
-      <div class="bg-white p-4 rounded-xl shadow-lg border border-gray-200">
-        <h2 class="text-xl font-bold mb-4 text-gray-700 border-b pb-2">Component Library</h2>
-        <div class="space-y-3">
-          <button
-            v-for="type in COMPONENT_TYPES"
-            :key="type.id"
-            @click="placeComponent(type.id)"
-            class="w-full flex items-center p-3 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors border border-indigo-200 shadow-sm">
-            <i :class="['lucide', type.icon, 'text-indigo-600 mr-3']" style="width:20px;height:20px;"></i>
-            <span class="font-medium text-indigo-700">{{ type.name }}</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Simulation -->
-      <div class="bg-white p-4 rounded-xl shadow-lg border border-gray-200">
-        <h2 class="text-xl font-bold mb-4 text-gray-700 border-b pb-2">Simulation & Export</h2>
-        <div class="mb-4">
-          <label class="block text-gray-600 font-medium text-sm mb-1">Incident Angle (deg)</label>
-          <input type="number" min="-90" max="90" v-model.number="controls.angle_of_incidence_deg"
-            class="w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" />
-        </div>
-        <h3 class="text-base font-semibold mt-4 text-gray-700">Frequency Sweep (Wavelength)</h3>
-        <div class="grid grid-cols-3 gap-2 mt-2 text-sm">
-          <div v-for="(value,key) in controls.frequency_sweep" :key="key">
-            <label class="block text-gray-500 capitalize">{{ key.replace('_',' ') }}</label>
-            <input type="number" v-model.number="controls.frequency_sweep[key]"
-              class="w-full p-2 border border-gray-300 rounded-md" />
-          </div>
-        </div>
-
-        <button @click="exportSetup"
-          class="mt-6 w-full flex items-center justify-center py-3 px-4 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition-colors">
-          <i class="lucide lucide-download mr-2" style="width:20px;height:20px;"></i>
-          Download Setup JSON
-        </button>
-
-        <button @click="runSimulation" :disabled="isSimulating"
-          class="mt-2 w-full flex items-center justify-center py-3 px-4 text-white font-semibold rounded-lg shadow-md transition-colors"
-          :class="isSimulating ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600'">
-          <span v-if="isSimulating" class="animate-spin mr-2 border-t-2 border-white rounded-full h-5 w-5"></span>
-          <i v-else class="lucide lucide-zap mr-2" style="width:20px;height:20px;"></i>
-          {{ isSimulating ? 'Simulating...' : 'Run Simulation' }}
-        </button>
-      </div>
+<div id="app" v-cloak class="p-4 sm:p-6 lg:p-8 max-w-screen-2xl mx-auto">
+    
+    <div v-if="toast.visible" class="toast fixed top-5 right-5 bg-gray-800 text-white py-2 px-4 rounded-lg shadow-lg z-50">
+        {{ toast.message }}
     </div>
 
-    <!-- Center Panel -->
-    <div class="w-full lg:w-2/4 aspect-square">
-      <div ref="gridContainer"
-        class="relative w-full h-full bg-white rounded-xl shadow-2xl border-4 border-gray-100/50 overflow-hidden"
-        @mousemove="handleDragMove" @mouseup="handleDragEnd" @mouseleave="handleDragEnd" @click="handleGridClick">
-
-        <!-- SVG Grid -->
-        <svg class="absolute inset-0 w-full h-full z-10" viewBox="0 0 100 100">
-          <g opacity="0.4" stroke-width="0.3" stroke="#CBD5E1">
-            <line v-for="i in GRID_SIZE" :key="'h'+i" :y1="i*10" :y2="i*10" x1="0" x2="100"/>
-            <line v-for="i in GRID_SIZE" :key="'v'+i" :x1="i*10" :x2="i*10" y1="0" y2="100"/>
-          </g>
-        </svg>
-
-        <div class="absolute inset-0 z-20">
-          <div v-for="comp in components" :key="comp.id"
-            @click.stop="setSelectedComponentId(comp.id)"
-            @mousedown.stop="startDrag(comp, $event)"
-            class="absolute grid-cell cursor-move"
-            :style="getComponentStyle(comp)">
-            <div class="absolute inset-0 flex items-center justify-center">
-              <div v-if="comp.type==='laser'" class="w-5 h-5 rounded-full bg-red-500 border-2 border-red-700"></div>
-              <div v-else-if="comp.type==='mirror'" class="w-full h-1 bg-gradient-to-r from-gray-200 to-gray-500"></div>
-              <div v-else-if="comp.type==='lens'" class="w-6 h-6 rounded-full border-2 border-blue-500 bg-blue-100/50"></div>
-              <div v-else-if="comp.type==='beamsplitter'" class="w-4 h-4 bg-yellow-400 border-2 border-yellow-600 rotate-45"></div>
-              <div v-else-if="comp.type==='detector'" class="w-6 h-6 bg-green-700 border-4 border-green-400"></div>
+    <main class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div class="lg:col-span-3 space-y-6">
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">Component Library</h2>
+                <div class="space-y-2">
+                    <button v-for="type in COMPONENT_TYPES" @click="placeComponent(type.id)" 
+                        class="w-full flex items-center p-3 text-left bg-white hover:bg-gray-50 rounded-lg transition-colors">
+                        <i :data-lucide="type.icon" class="h-5 w-5 mr-3 text-gray-500"></i>
+                        <span class="font-medium text-gray-700">{{ type.name }}</span>
+                    </button>
+                </div>
             </div>
-          </div>
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">Actions & Controls</h2>
+                <div class="space-y-3 text-sm">
+                    <div class="flex justify-between items-center">
+                        <label class="font-medium text-gray-600">Incident Angle (°)</label>
+                        <input type="number" v-model.number="controls.angle_of_incidence_deg" @input="recordHistory" class="w-24 p-2 border rounded-md bg-gray-50 text-right">
+                    </div>
+                    <div class="flex space-x-2">
+                        <button @click="undo" :disabled="history.length <= 1" class="w-full flex items-center justify-center p-2 bg-gray-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i data-lucide="undo-2" class="h-5 w-5"></i>
+                        </button>
+                        <button @click="redo" :disabled="redoStack.length === 0" class="w-full flex items-center justify-center p-2 bg-gray-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i data-lucide="redo-2" class="h-5 w-5"></i>
+                        </button>
+                    </div>
+                    <button @click="runFrequencySweep" :disabled="isSimulating" 
+                        class="w-full flex items-center justify-center py-2.5 px-4 text-white font-semibold rounded-lg shadow-sm"
+                        :class="isSimulating ? 'bg-gray-400' : 'bg-indigo-600 hover:bg-indigo-700'">
+                        <i data-lucide="bar-chart-2" class="h-5 w-5 mr-2"></i>
+                        <span>{{ isSimulating ? 'Running...' : 'Run Frequency Sweep' }}</span>
+                    </button>
+                    <button @click="downloadSetup" class="w-full flex items-center justify-center py-2.5 px-4 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg shadow-sm">
+                        <i data-lucide="download" class="h-5 w-5 mr-2"></i>
+                        <span>Download Setup</span>
+                    </button>
+                </div>
+            </div>
+             <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">Load Template</h2>
+                <div class="space-y-2">
+                     <button @click="loadTemplate('periscope')" class="w-full text-left p-3 bg-gray-50 hover:bg-indigo-100 rounded-lg transition-colors">Periscope</button>
+                     <button @click="loadTemplate('splitter')" class="w-full text-left p-3 bg-gray-50 hover:bg-indigo-100 rounded-lg transition-colors">Beam Splitter Demo</button>
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
 
-    <!-- Right Panel -->
-    <div class="w-full lg:w-1/4 bg-white p-4 rounded-xl shadow-lg border border-gray-200">
-      <h2 class="text-xl font-bold text-gray-700 border-b pb-2 mb-4">Component Properties</h2>
-      <div v-if="!selectedComponent" class="text-gray-500">Select a component on the grid.</div>
-      <div v-else>
-        <h3 class="text-lg font-semibold text-indigo-600">{{ getComponentType(selectedComponent.type).name }}</h3>
-        <p class="text-sm text-gray-500 mb-2">ID: {{ selectedComponent.id }}</p>
-
-        <div class="grid grid-cols-2 gap-4 text-sm">
-          <div>
-            <label class="block text-gray-600 font-medium">X</label>
-            <input type="number" v-model.number="selectedComponent.position.x"
-              @input="updateComponentPosition(selectedComponent.id, selectedComponent.position.x, selectedComponent.position.y)"
-              class="w-full mt-1 p-2 border border-gray-300 rounded-md" />
-          </div>
-          <div>
-            <label class="block text-gray-600 font-medium">Y</label>
-            <input type="number" v-model.number="selectedComponent.position.y"
-              @input="updateComponentPosition(selectedComponent.id, selectedComponent.position.x, selectedComponent.position.y)"
-              class="w-full mt-1 p-2 border border-gray-300 rounded-md" />
-          </div>
+        <div class="lg:col-span-6">
+            <div ref="gridContainer" style="width: 600px; height: 600px;" 
+                class="relative bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden" 
+                @mousemove="handleDragMove" @mouseup="handleInteractionEnd" @mouseleave="handleInteractionEnd">
+                <svg class="absolute inset-0 w-full h-full" viewBox="0 0 600 600">
+                    <defs><pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="#e2e8f0"></circle></pattern></defs>
+                    <rect width="100%" height="100%" fill="url(#grid)" />
+                    <g v-for="(path, pathIndex) in simulatedRayPaths" :key="pathIndex">
+                        <path v-for="(segment, segIndex) in path" :key="segIndex"
+                            :d="`M ${segment[0][0]} ${segment[0][1]} L ${segment[1][0]} ${segment[1][1]}`" 
+                            stroke="#ef4444" stroke-width="1.5" fill="none" />
+                    </g>
+                </svg>
+                <div v-for="comp in components" :key="comp.id" class="absolute"
+                    :style="{ transform: `translate(${comp.position.x - 24}px, ${comp.position.y - 24}px)` }"
+                    @mousedown.stop="startDrag(comp, $event)" @click.stop="selectedComponentId = comp.id">
+                    <div class="relative w-12 h-12 flex items-center justify-center cursor-pointer group" 
+                        :class="{'ring-2 ring-indigo-500 rounded-full': selectedComponentId === comp.id}">
+                        <div class="transition-transform duration-100" :style="{ transform: `rotate(${comp.properties.angle || 0}deg)` }">
+                             <i :data-lucide="getComponentType(comp.type).icon" class="h-8 w-8 text-gray-700"></i>
+                        </div>
+                        <div v-if="selectedComponentId === comp.id" 
+                            class="absolute w-4 h-4 bg-indigo-600 rounded-full cursor-alias"
+                            style="top: -8px; left: 50%; transform: translateX(-50%);"
+                            @mousedown.stop="startRotate(comp, $event)">
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
-  </div>
 
-  <footer class="mt-8 text-center text-gray-500 text-sm border-t pt-4">
-    <p>Contact: 0000000000 | Email: Ritik Gupta</p>
-  </footer>
+        <div class="lg:col-span-3 space-y-6">
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">Component Properties</h2>
+                <div v-if="!selectedComponent" class="text-gray-500 text-sm">Select a component to edit.</div>
+                <div v-else class="space-y-4 text-sm">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-lg font-medium text-indigo-600">{{ getComponentType(selectedComponent.type).name }}</h3>
+                        <button @click="deleteComponent(selectedComponent.id)" class="text-red-500 hover:text-red-700 font-semibold">Delete</button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 pt-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500">Grid X</label>
+                            <input type="number" v-model.number="selectedComponent.position.x" @input="recordHistory" class="mt-1 w-full p-2 border border-gray-300 rounded-md bg-gray-50">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500">Grid Y</label>
+                            <input type="number" v-model.number="selectedComponent.position.y" @input="recordHistory" class="mt-1 w-full p-2 border border-gray-300 rounded-md bg-gray-50">
+                        </div>
+                    </div>
+                    <div class="pt-4 border-t">
+                        <h4 class="font-semibold text-gray-600 mb-3">Specific Properties</h4>
+                        <div class="space-y-4">
+                            <div v-for="(prop, key) in selectedComponent.properties" :key="key">
+                                <label class="block text-xs font-semibold text-gray-500 uppercase">{{ key.replace(/_/g, ' ') }}</label>
+                                <input type="number" v-model.number="selectedComponent.properties[key]" @input="recordHistory" class="mt-1 w-full p-2 border border-gray-300 rounded-md bg-gray-50">
+                                <span v-if="getUnit(key)" class="text-[11px] text-gray-400 mt-1">{{ getUnit(key) }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">Frequency Sweep</h2>
+                <div class="space-y-4 pt-2">
+                    <div class="flex justify-between items-center text-sm">
+                        <label class="font-medium text-gray-600">Start $\lambda$ (nm)</label>
+                        <input type="number" v-model.number="sweepControls.start_nm" class="w-20 p-2 border rounded-md bg-gray-50 text-right">
+                    </div>
+                    <div class="flex justify-between items-center text-sm">
+                        <label class="font-medium text-gray-600">Stop $\lambda$ (nm)</label>
+                        <input type="number" v-model.number="sweepControls.stop_nm" class="w-20 p-2 border rounded-md bg-gray-50 text-right">
+                    </div>
+                    <div class="flex justify-between items-center text-sm">
+                        <label class="font-medium text-gray-600">Data Points</label>
+                        <input type="number" v-model.number="sweepControls.points" class="w-20 p-2 border rounded-md bg-gray-50 text-right">
+                    </div>
+                </div>
+                <div class="mt-4"><canvas id="sweepChart"></canvas></div>
+            </div>
+            </div>
+    </main>
 </div>
-
 <script>
-const { createApp, ref, reactive, computed, onMounted } = Vue;
+    const { createApp, ref, reactive, computed, onMounted, watch, nextTick } = Vue;
+    const app = createApp({
+        setup() {
+            const API_URL = "http://127.0.0.1:8000";
+            const COMPONENT_TYPES = [
+                { id: 'laser', name: 'Laser Source', icon: 'sun', defaultProps: { angle: 0 } },
+                { id: 'mirror', name: 'Mirror', icon: 'rectangle-horizontal', defaultProps: { angle: 45 } },
+                { id: 'lens', name: 'Lens', icon: 'circle', defaultProps: { focal_length: 50 } },
+                { id: 'detector', name: 'Detector', icon: 'app-window', defaultProps: {} },
+                { id: 'beamsplitter', name: 'Beam Splitter', icon: 'copy', defaultProps: { angle: 45 } },
+            ];
+            
+            const components = ref([]);
+            const selectedComponentId = ref(null);
+            const isSimulating = ref(false);
+            const simulatedRayPaths = ref([]);
+            const interactionState = reactive({ type: null, component: null, offset: {}, startAngle: 0, initialAngle: 0 });
+            const toast = reactive({ visible: false, message: '', timer: null });
+            const controls = reactive({ angle_of_incidence_deg: 0 });
+            
+            // ADDED: Sweep Controls and Chart Instance Ref
+            const sweepControls = reactive({ start_nm: 400, stop_nm: 700, points: 50 });
+            let chartInstance = null; // Ref to hold the Chart.js instance
+            
+            // Undo/Redo State
+            const history = ref([]);
+            const redoStack = ref([]);
+            let isTimeTraveling = false; 
 
-createApp({
-  setup() {
-    const GRID_SIZE = 10;
-    const COMPONENT_TYPES = [
-      { id:'laser', name:'Laser Source', icon:'lucide-sun-dim', defaultProps:{angle:0,power_mw:10,wavelength_nm:650}},
-      { id:'mirror', name:'Mirror', icon:'lucide-refresh-ccw', defaultProps:{angle:45,reflectivity:99.5}},
-      { id:'lens', name:'Lens', icon:'lucide-target', defaultProps:{angle:0,focal_length_mm:50}},
-      { id:'beamsplitter', name:'Beam Splitter', icon:'lucide-shuffle', defaultProps:{angle:45,reflectivity:50,transmissivity:50}},
-      { id:'detector', name:'Photodetector', icon:'lucide-layout-grid', defaultProps:{angle:90,area_mm2:10}},
-    ];
-    const components = ref([]);
-    const selectedComponentId = ref(null);
-    const message = ref('');
-    const messageType = ref('success');
-    const controls = reactive({
-      angle_of_incidence_deg: 0,
-      frequency_sweep: { start_nm:400, stop_nm:700, points:11 }
+            const selectedComponent = computed(() => components.value.find(c => c.id === selectedComponentId.value));
+            const getComponentType = (typeId) => COMPONENT_TYPES.find(t => t.id === typeId) || {};
+            const getUnit = (propKey) => ({ angle: 'degrees', focal_length: 'mm', power: 'mW' }[propKey] || null);
+
+            const recordHistory = () => {
+                if (isTimeTraveling) return;
+                redoStack.value = []; 
+                history.value.push(JSON.parse(JSON.stringify(components.value)));
+                if (history.value.length > 30) history.value.shift(); 
+            };
+
+            const timeTravel = (fromStack, toStack) => {
+                if (fromStack.value.length === 0) return;
+                isTimeTraveling = true;
+                toStack.value.push(JSON.parse(JSON.stringify(components.value)));
+                components.value = fromStack.value.pop();
+                nextTick(() => { isTimeTraveling = false; lucide.createIcons(); });
+            };
+            
+            const undo = () => {
+                if (history.value.length <= 1) return;
+                timeTravel(history, redoStack);
+                const prevState = history.value.pop();
+                if(prevState) components.value = prevState;
+                 nextTick(() => { isTimeTraveling = false; lucide.createIcons(); });
+            };
+
+            const redo = () => timeTravel(redoStack, history);
+
+            const placeComponent = (typeId) => {
+                const type = getComponentType(typeId);
+                components.value.push({
+                    id: `${typeId}-${Date.now()}`, type: typeId,
+                    position: { x: 300, y: 300 }, properties: { ...type.defaultProps }
+                });
+                recordHistory();
+                nextTick(() => { lucide.createIcons(); });
+            };
+
+            const deleteComponent = (id) => {
+                components.value = components.value.filter(c => c.id !== id);
+                if (selectedComponentId.value === id) selectedComponentId.value = null;
+                recordHistory();
+            };
+
+            const showToast = (message) => {
+                if (toast.timer) clearTimeout(toast.timer);
+                toast.message = message; toast.visible = true;
+                toast.timer = setTimeout(() => { toast.visible = false; }, 3000);
+            };
+
+            const downloadSetup = () => {
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(components.value, null, 2));
+                const dlAnchorElem = document.createElement('a');
+                dlAnchorElem.setAttribute("href", dataStr);
+                dlAnchorElem.setAttribute("download", "optical_setup.json");
+                dlAnchorElem.click();
+                dlAnchorElem.remove();
+                showToast("Setup downloaded as optical_setup.json");
+            };
+
+            const startDrag = (comp, event) => {
+                interactionState.type = 'drag'; interactionState.component = comp;
+                interactionState.offset = { x: event.clientX - comp.position.x, y: event.clientY - comp.position.y };
+            };
+
+            const startRotate = (comp, event) => {
+                interactionState.type = 'rotate'; interactionState.component = comp;
+                const center = { x: comp.position.x, y: comp.position.y };
+                const startVec = { x: event.clientX - center.x, y: event.clientY - center.y };
+                interactionState.startAngle = Math.atan2(startVec.y, startVec.x) * 180 / Math.PI;
+                interactionState.initialAngle = comp.properties.angle || 0;
+            };
+            
+            const handleDragMove = (event) => {
+                if (!interactionState.type) return;
+                const comp = interactionState.component;
+                if (interactionState.type === 'drag') {
+                    comp.position.x = event.clientX - interactionState.offset.x;
+                    comp.position.y = event.clientY - interactionState.offset.y;
+                } else if (interactionState.type === 'rotate') {
+                    const center = { x: comp.position.x, y: comp.position.y };
+                    const currentVec = { x: event.clientX - center.x, y: event.clientY - center.y };
+                    const currentAngle = Math.atan2(currentVec.y, currentVec.x) * 180 / Math.PI;
+                    const newAngle = interactionState.initialAngle + (currentAngle - interactionState.startAngle);
+                    comp.properties.angle = Math.round(newAngle / 15) * 15;
+                }
+            };
+            
+            const handleInteractionEnd = () => {
+                if(interactionState.type) recordHistory();
+                interactionState.type = null;
+            };
+
+            const updateRayPath = async () => {
+                if (components.value.length === 0) { simulatedRayPaths.value = []; return; }
+                try {
+                    const response = await fetch(`${API_URL}/simulate_path`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ components: components.value, controls: controls })
+                    });
+                    if (!response.ok) return;
+                    const data = await response.json();
+                    simulatedRayPaths.value = data.all_paths;
+                } catch (error) {}
+            };
+            
+            // FIXED: runFrequencySweep implementation
+            const runFrequencySweep = async () => {
+                const detectorComp = components.value.find(c => c.type === 'detector');
+                if (!detectorComp) {
+                    showToast("Please add a Detector component to run the sweep.");
+                    return;
+                }
+                
+                isSimulating.value = true;
+                simulatedRayPaths.value = []; // Clear paths during sweep visualization
+                
+                try {
+                    const response = await fetch(`${API_URL}/simulate_sweep`, {
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            components: components.value, 
+                            controls: controls,
+                            frequency_sweep: sweepControls 
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        showToast(`Sweep failed: ${response.status} ${response.statusText}`);
+                        return;
+                    }
+                    
+                    const data = await response.json();
+                    renderChart(data.frequency_sweep_results);
+                    showToast("Frequency sweep completed!");
+                } catch (error) {
+                    console.error("Simulation error:", error);
+                    showToast("Error running simulation. Check API connection.");
+                } finally {
+                    isSimulating.value = false;
+                    updateRayPath(); // Restore ray path visualization
+                }
+            };
+
+            // FIXED: renderChart implementation
+            const renderChart = (sweepData) => {
+                const ctx = document.getElementById('sweepChart');
+                if (!ctx) return;
+                
+                // Destroy existing chart if it exists
+                if (chartInstance) {
+                    chartInstance.destroy();
+                }
+
+                chartInstance = new Chart(ctx.getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: sweepData.map(d => d.wavelength_nm),
+                        datasets: [{
+                            label: 'Detected Power (mW)',
+                            data: sweepData.map(d => d.detected_power_mw),
+                            borderColor: '#4f46e5',
+                            backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            pointRadius: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            x: {
+                                title: { display: true, text: 'Wavelength (nm)' },
+                                ticks: { maxTicksLimit: 10 }
+                            },
+                            y: {
+                                title: { display: true, text: 'Power (mW)' },
+                                beginAtZero: true
+                            }
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: { mode: 'index', intersect: false }
+                        }
+                    }
+                });
+            };
+            
+            const loadTemplate = (name) => {
+                const templates = {
+                    periscope: [
+                        { id: 'laser-1', type: 'laser', position: { x: 60, y: 540 }, properties: { angle: 0 } },
+                        { id: 'mirror-1', type: 'mirror', position: { x: 240, y: 540 }, properties: { angle: 135 } },
+                        { id: 'mirror-2', type: 'mirror', position: { x: 240, y: 60 }, properties: { angle: 45 } },
+                        { id: 'detector-1', type: 'detector', position: { x: 540, y: 60 }, properties: {} },
+                    ],
+                    splitter: [
+                        { id: 'laser-1', type: 'laser', position: { x: 60, y: 300 }, properties: { angle: 0 } },
+                        { id: 'beamsplitter-1', type: 'beamsplitter', position: { x: 300, y: 300 }, properties: { angle: 135 } },
+                        { id: 'detector-1', type: 'detector', position: { x: 540, y: 300 }, properties: {} },
+                        { id: 'detector-2', type: 'detector', position: { x: 300, y: 60 }, properties: {} },
+                    ]
+                };
+                components.value = templates[name] || [];
+                recordHistory();
+                nextTick(() => lucide.createIcons());
+            };
+            
+            watch([components, controls], updateRayPath, { deep: true });
+
+            onMounted(() => {
+                lucide.createIcons();
+                loadTemplate('periscope');
+                history.value.push(JSON.parse(JSON.stringify(components.value))); // Initial history state
+            });
+            
+            return {
+                components, selectedComponentId, isSimulating, simulatedRayPaths, controls, toast, COMPONENT_TYPES, history, redoStack,
+                selectedComponent, getComponentType, getUnit, placeComponent, deleteComponent, startDrag, startRotate, downloadSetup,
+                handleDragMove, handleInteractionEnd, runFrequencySweep, undo, redo, loadTemplate,
+                sweepControls // ADDED to be accessible in the template
+            };
+        }
     });
-
-    const selectedComponent = computed(() => components.value.find(c=>c.id===selectedComponentId.value));
-
-    onMounted(()=>{
-      components.value=[
-        {id:'laser-1',type:'laser',position:{x:1,y:5},properties:{angle:0,power_mw:10,wavelength_nm:650}},
-        {id:'mirror-2',type:'mirror',position:{x:6,y:5},properties:{angle:45,reflectivity:99.5}},
-        {id:'detector-3',type:'detector',position:{x:10,y:1},properties:{angle:90,area_mm2:10}},
-      ];
-    });
-
-    const getComponentType = id => COMPONENT_TYPES.find(t=>t.id===id);
-    const getComponentStyle = comp => ({
-      left: `${comp.position.x*10}%`,
-      top: `${comp.position.y*10}%`,
-      width: '10%',
-      height: '10%',
-      transform: 'translate(-50%,-50%)'
-    });
-
-    const showMessage = (msg, type='success')=>{
-      message.value=msg;
-      messageType.value=type;
-      setTimeout(()=>message.value='',4000);
-    };
-
-    const placeComponent = (typeId)=>{
-      const type = getComponentType(typeId);
-      const id = `${typeId}-${Date.now()}`;
-      components.value.push({id,type:typeId,position:{x:5,y:5},properties:{...type.defaultProps}});
-      selectedComponentId.value = id;
-      showMessage(`Placed ${type.name}`);
-    };
-
-    const updateComponentPosition=(id,x,y)=>{
-      const comp = components.value.find(c=>c.id===id);
-      if(comp){
-        comp.position.x = Math.max(1,Math.min(GRID_SIZE,x));
-        comp.position.y = Math.max(1,Math.min(GRID_SIZE,y));
-      }
-    };
-
-    const setSelectedComponentId=(id)=>selectedComponentId.value=id;
-
-    const handleGridClick=(e)=>{
-      if(e.target===e.currentTarget) selectedComponentId.value=null;
-    };
-
-    const startDrag=()=>{};
-    const handleDragMove=()=>{};
-    const handleDragEnd=()=>{};
-    const exportSetup=()=>showMessage('Download feature working!');
-    const runSimulation=()=>showMessage('Simulation triggered!');
-
-    return {
-      GRID_SIZE, COMPONENT_TYPES, components, selectedComponentId, selectedComponent,
-      message, messageType, controls,
-      getComponentType, getComponentStyle, placeComponent, updateComponentPosition,
-      setSelectedComponentId, handleGridClick, startDrag, handleDragMove, handleDragEnd,
-      exportSetup, runSimulation
-    };
-  }
-}).mount('#app');
+    app.mount('#app');
 </script>
-
 </body>
 </html>
