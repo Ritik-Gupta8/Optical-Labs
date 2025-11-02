@@ -394,9 +394,7 @@
                 recordHistory();
                 nextTick(() => lucide.createIcons());
             };
-            
             watch([components, controls], updateRayPath, { deep: true });
-
             onMounted(() => {
                 lucide.createIcons();
                 loadTemplate('periscope');
